@@ -884,7 +884,7 @@ Here, if I had more time I'd run a hyperparameter optimization thingie.
 : 0.4420289855072464
 
 *** KNN
-#+BEGIN_SRC jupyter-python :session seb :cache nil
+#+BEGIN_SRC jupyter-python :session seb :cache nil :exports both
   from sklearn.neighbors import KNeighborsClassifier
   for k in range(2, 15):  # "k = 3
       KN_model = KNeighborsClassifier(n_neighbors=k).fit(X_train, y_train)
