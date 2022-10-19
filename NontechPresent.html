@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Financial transactions, demographics and Loans</title>
+<meta name="author" content="(T. Emil Rivera-Thorsen)"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.css"/>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js/dist/theme/white.css" id="theme"/>
+
+
+<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+<script>
+    if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = 'https://cdn.jsdelivr.net/npm/reveal.js/css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+    }
+</script>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide"><h1 class="title">Financial transactions, demographics and Loans</h1><h2 class="author">T. Emil Rivera-Thorsen</h2><p class="date">Created: 2022-10-19 Wed 12:54</p>
+</section>
+
+<section>
+<section id="slide-org366db41">
+<h2 id="org366db41">The main question</h2>
+<blockquote >
+<p>
+Can we find behavioral or demographic clues to how likely people are
+to hold a loan?
+</p>
+</blockquote>
+
+</section>
+</section>
+<section>
+<section id="slide-orgda592f5">
+<h2 id="orgda592f5">The Data set</h2>
+<ul>
+<li>Table of customer information</li>
+<li>Table of financial transactions</li>
+<li>Table of demographic information for customers&rsquo; home region</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org8bda7ed">
+<h2 id="org8bda7ed">Customer behavior</h2>
+<div class="outline-text-2" id="text-org8bda7ed">
+</div>
+</section>
+<section id="slide-org1229c7a">
+<h3 id="org1229c7a">Average # of transactions per customer</h3>
+
+<div id="org7c15bce" class="figure">
+<p><img src="./TransactCount.png" alt="TransactCount.png" />
+</p>
+</div>
+
+</section>
+<section id="slide-org703f931">
+<h3 id="org703f931">Average amount spent by customer</h3>
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left">By gender</td>
+<td class="org-left">By district</td>
+</tr>
+
+<tr>
+<td class="org-left"><img src="./amount_by_gender_hist.png" alt="amount_by_gender_hist.png" /></td>
+<td class="org-left"><img src="./AmountPerCustomerByDistrict.png" alt="AmountPerCustomerByDistrict.png" /></td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Gender has very little impact on total spending. Geography a bit more,
+but not strong. 
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-org7fcf22f">
+<h2 id="org7fcf22f">Visual clues: What predicts the value of <code>LOAN</code>?</h2>
+<div class="outline-text-2" id="text-org7fcf22f">
+</div>
+</section>
+<section id="slide-orgd5fb525">
+<h3 id="orgd5fb525"><i>Violin plots</i> are good at comparing distributions</h3>
+<p>
+If there is a clear difference in the distribution of people who do
+and do not have loans, then the quantity is a good predictor of <code>LOAN</code>
+</p>
+
+
+</section>
+<section id="slide-orgb07d92c">
+<h3 id="orgb07d92c">Salary, urban ratio, and birth date are poor predictors</h3>
+
+<div id="orgb41e616" class="figure">
+<p><img src="./UrbRatioLoan.png" alt="UrbRatioLoan.png" />
+</p>
+</div>
+
+<p>
+The birthdate is best, but I do not quite understand why.
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-org30da880">
+<h2 id="org30da880">Model: Decision tree</h2>
+<div class="outline-text-2" id="text-org30da880">
+</div>
+</section>
+<section id="slide-org16f9031">
+<h3 id="org16f9031">Example: Depth 3</h3>
+
+<div id="org87a8fd5" class="figure">
+<p><img src="./DTree.png" alt="DTree.png" />
+</p>
+</div>
+
+
+</section>
+<section id="slide-org9113973">
+<h3 id="org9113973">Indeed, <code>ACCOUNT_ID</code> seems to the strongest predictor</h3>
+<p>
+(This is probably not a real effect!)
+</p>
+
+
+<div id="org7961101" class="figure">
+<p><img src="./SwarmPlotACCID.png" alt="SwarmPlotACCID.png" width="650px" />
+</p>
+</div>
+
+</section>
+<section id="slide-org8b61bc1">
+<h3 id="org8b61bc1">Most important factors are a bit suprpising</h3>
+<ol>
+<li><code>ACCOUNT_ID</code></li>
+<li><code>BIRTH_DT</code></li>
+
+</ol>
+
+<p>
+<i>More work is needed!</i>
+Thank your for your attention.
+</p>
+</section>
+</section>
+</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js"></script>
+
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+// Optional libraries used to extend on reveal.js
+dependencies: [
+ { src: 'https://cdn.jsdelivr.net/npm/reveal.js/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'https://cdn.jsdelivr.net/npm/reveal.js/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'https://cdn.jsdelivr.net/npm/reveal.js/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+ { src: 'https://cdn.jsdelivr.net/npm/reveal.js/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }]
+
+});
+
+</script>
+</body>
+</html>
