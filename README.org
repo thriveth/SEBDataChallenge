@@ -1,0 +1,8 @@
+#+title: SEB Data Challenge
+#+author: T. Emil Rivera-Thorsen
+:preamble:
+#+startup: overview entitiespretty inlineimages
+#+options: toc:nil num:nil todo:nil tags:nil 
+:end: 
+
+See [[./CodeChallenge.org]] for the good stuff.
