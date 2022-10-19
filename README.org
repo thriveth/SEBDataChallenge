@@ -5,4 +5,4 @@
 #+options: toc:nil num:nil todo:nil tags:nil 
 :end: 
 
-See [[./CodeChallenge.org]] for the good stuff.
+See [[./SEB Data challenge.ipynb]] for the good stuff.
