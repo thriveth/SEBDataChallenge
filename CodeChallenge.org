@@ -860,11 +860,11 @@ whether or not people get loans.
 *** Logistic regression
 Here, if I had more time I'd run a hyperparameter optimization thingie.
 
-#+BEGIN_SRC jupyter-python :session seb :cache nil
+#+BEGIN_SRC jupyter-python :session seb :cache nil :exports both
   from sklearn.linear_model import LogisticRegression
   LR_model = LogisticRegression(C=0.01).fit(X_train, y_train)
   LR_prdct = LR_model.predict(X_test)
-  jaccard_score(y_test, LR_prdct)
+  print(jaccard_score(y_test, LR_prdct))
   # DT_model.score(dt)
 #+END_SRC
 
@@ -872,7 +872,7 @@ Here, if I had more time I'd run a hyperparameter optimization thingie.
 : 0.3795620437956204
 
 *** SVM
-#+BEGIN_SRC jupyter-python :session seb :cache nil
+#+BEGIN_SRC jupyter-python :session seb :cache nil :exports both
   from sklearn.svm import SVC
   SV_model = SVC()
   SV_model.fit(X_train, y_train)
