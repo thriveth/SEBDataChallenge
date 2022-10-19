@@ -1,0 +1,73 @@
+#+title: Financial transactions, demographics and Loans
+#+author: T. Emil Rivera-Thorsen
+:preamble:
+#+latex_header: \usepackage{libertinus}
+#+startup: overview entitiespretty inlineimages
+#+options: toc:nil num:nil todo:nil tags:nil date:nil
+#+reveal_root: https://cdn.jsdelivr.net/npm/reveal.js
+#+reveal_theme: white
+:end: 
+
+* The main question
+#+begin_quote
+ Can we find behavioral or demographic clues to how likely people are
+ to hold a loan?
+#+end_quote
+
+* The Data set
+- Table of customer information
+- Table of financial transactions
+- Table of demographic information for customers' home region
+
+* Customer behavior
+
+** Average # of transactions per customer
+
+#+attr_org: :width 500px
+[[./TransactCount.png]]
+
+** Average amount spent by customer
+
+| By gender                   | By district                       |
+| [[./amount_by_gender_hist.png]] | [[./AmountPerCustomerByDistrict.png]] |
+
+Gender has very little impact on total spending. Geography a bit more,
+but not strong. 
+
+* Visual clues: What predicts the value of ~LOAN~?
+
+** /Violin plots/ are good at comparing distributions
+
+If there is a clear difference in the distribution of people who do
+and do not have loans, then the quantity is a good predictor of =LOAN=
+
+
+** Salary, urban ratio, and birth date are poor predictors
+
+#+attr_org: :width 600px
+[[./UrbRatioLoan.png]]
+
+The birthdate is best, but I do not quite understand why.
+
+* Model: Decision tree
+
+** Example: Depth 3
+
+#+attr_org: :width 600px
+[[./DTree.png]]
+
+
+** Indeed, ~ACCOUNT_ID~ seems to the strongest predictor
+(This is probably not a real effect!)
+
+#+attr_org: :width 600px
+#+attr_html: :width 650px
+[[./SwarmPlotACCID.png]]
+
+** Most important factors are a bit suprpising
+
+1. ~ACCOUNT_ID~
+2. ~BIRTH_DT~
+
+/More work is needed!/
+Thank your for your attention.
