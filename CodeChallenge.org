@@ -1,0 +1,911 @@
+#+title:  SEB Code Challenge
+#+author: T. Emil Rivera-Thorsen
+#+startup: entitiespretty hidestars show2levels indent 
+
+* Imports and setup
+First a short and quick section for imports and setup.
+
+#+BEGIN_SRC jupyter-python :session seb :results silent
+  %pylab
+  import numpy as np
+  import pandas as pd
+  import seaborn as sns
+  from sklearn import preprocessing
+#+END_SRC
+
+ #+BEGIN_SRC jupyter-python :session seb :results silent
+   np.set_printoptions(edgeitems=30, linewidth=100000,)  # formatter=dict(float=lambda x: "%.3g" % x))
+ #+END_SRC
+ 
+* Load and clean data
+** Load datasets
+#+BEGIN_SRC jupyter-python :session seb  :dir /home/trive/Documents/Arbejde/IndustryJobs/SEBCodeChallenge/ :cache nil
+  customers = pd.read_csv("./data_updated/customers.csv")
+  districts = pd.read_csv("./data_updated/districts.csv")
+  transacts = pd.read_csv("./data_updated/transactions.csv")
+  transacts.head()
+  
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+|     | TRANS\_ID   | ACCOUNT\_ID   | DATE      | AMOUNT   | BALANCE   | TYPE     | OPERATION          |
+|-----+-------------+---------------+-----------+----------+-----------+----------+--------------------|
+| 0   | 695247      | 2378.0        | 1011993   | 700.0    | 700.0     | CREDIT   | CREDIT\_IN\_CASH   |
+| 1   | 171812      | 576.0         | 1011993   | 900.0    | 900.0     | CREDIT   | CREDIT\_IN\_CASH   |
+| 2   | 207264      | 704.0         | 1011993   | 1000.0   | 1000.0    | CREDIT   | CREDIT\_IN\_CASH   |
+| 3   | 1117247     | 3818.0        | 1011993   | 600.0    | 600.0     | CREDIT   | CREDIT\_IN\_CASH   |
+| 4   | 579373      | 1972.0        | 2011993   | 400.0    | 400.0     | CREDIT   | CREDIT\_IN\_CASH   |
+
+
+:END:
+
+** Customers
+*** Check for missing values
+The easy way to check for missing numerical values is to use the
+~dropna()~ method and see if the dataframe changes size. There might of
+course be defective values in string columns, we will look at that later.
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil 
+  print(customers.shape)
+  print(customers.dropna().shape)
+#+END_SRC
+
+#+RESULTS:
+: (4450, 8)
+: (4400, 8)
+
+It did change size, so now we need to decide whether to get rid of
+these values or not, or maybe do it later:
+
+#+BEGIN_SRC jupyter-python :session seb  :cache nil
+  # print(where(customers.isnull()))
+  nan_cols = set(where(customers.isnull())[1])
+  print([customers.columns[j] for j in nan_cols])
+#+END_SRC
+
+#+RESULTS[4c27c7ec5f8d9de7a02362ae99a9818f31297131]:
+: ['LOAN']
+
+All missing values are in the =LOAN= column, which is the target
+variable of this entire dataset. So, I decide to remove all rows with
+missing values in this dataset. 
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  customers_nonan = customers.dropna()
+  customers.shape, customers_nonan.shape
+#+END_SRC
+
+#+RESULTS[685bff350c2f75a10ffc8d439f623a42ae691eb0]:
+| 4450 | 8 |
+| 4400 | 8 |
+
+*** Type check
+We want to check whether the data columns have sensible data types.
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  customers_nonan.dtypes
+#+END_SRC
+
+#+RESULTS[8c89445579562d9411ec84bcb9ef257e2cab3fae]:
+: CLIENT_ID        int64
+: ACCOUNT_ID       int64
+: GENDER          object
+: BIRTH_DT         int64
+: ACTIVE           int64
+: LOAN           float64
+: DISTRICT_ID      int64
+: SET_SPLIT       object
+: dtype: object
+
+=LOAN= looks like it should be a categorical value, and thus should be
+an integer. For the sake of later modeling, we may want to convert the
+categorical =GENDER= variable into a 0/1 encoding later, but for the
+sake of exploration, it is fine to have it as labels.
+
+I now check whether =LOAN= is truly categorical, and whether the other
+categorical values contain problematic values. In the same turn, I
+will check whether there is a 1:1 correspondence between =CLIENT_ID= and
+=ACCOUNT_ID=, in which case one of them can be dropped.
+
+=BIRTH_DT= has a non-standard format but it does sort correctly so I
+will keep it as is for now. With more time, I would probably turn it
+into a ~DateTime~ object.
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  print(customers_nonan.LOAN.value_counts())
+  print(customers_nonan.ACTIVE.value_counts())
+  print(customers_nonan.GENDER.value_counts())
+  print(customers_nonan.groupby("ACCOUNT_ID").count()["CLIENT_ID"].unique())
+#+END_SRC
+
+#+RESULTS[ac35e4626213e94199fb0d940caa1752b6e2ec6d]:
+: 0.0    3740
+: 1.0     660
+: Name: LOAN, dtype: int64
+: 1    4400
+: Name: ACTIVE, dtype: int64
+: M    2244
+: F    2156
+: Name: GENDER, dtype: int64
+: [1]
+
+As suspected, =LOAN= is truly categorical and should thus be an integer.
+=ACTIVE= contains only one value and can be dropped. There is one and
+only one account per customer, so the =CLIENT_ID= column can also be
+dropped. 
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  customers_nonan.LOAN = customers_nonan["LOAN"].astype(int)
+  customers_clean = customers_nonan.drop(["ACTIVE", "CLIENT_ID"], axis=1)
+  customers_clean.dtypes
+#+END_SRC
+
+#+RESULTS[5ee37448613d26141f9f40dc3e531a3162d1807b]:
+:RESULTS:
+: /home/trive/anaconda3/lib/python3.7/site-packages/pandas/core/generic.py:5516: SettingWithCopyWarning: 
+: A value is trying to be set on a copy of a slice from a DataFrame.
+: Try using .loc[row_indexer,col_indexer] = value instead
+: 
+: See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+:   self[name] = value
+: ACCOUNT_ID      int64
+: GENDER         object
+: BIRTH_DT        int64
+: LOAN            int64
+: DISTRICT_ID     int64
+: SET_SPLIT      object
+: dtype: object
+:END:
+
+*** Correlation plot
+#+BEGIN_SRC jupyter-python :session seb :cache nil :results silent
+  sns.heatmap(customers_clean.corr(), cmap="RdBu", vmin=-1, vmax=1)
+  tight_layout()
+  # plt.savefig("./CustCorrplot.png", dpi=200)
+#+END_SRC
+
+:output:
+#+attr_org: :width 400px
+#+attr_html: :width 500px
+[[./CustCorrplot.png]]
+:end:
+
+** Districts
+*** Missing values
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  print(districts.shape)
+  print(districts.dropna().shape)
+#+END_SRC
+
+#+RESULTS[4e52e05a2d0ca2ca50586ccf09498f1dfd89a82e]:
+: (77, 10)
+: (77, 10)
+
+This dataset has no missing numerical values.
+
+*** Datatype check
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  districts.dtypes
+#+END_SRC
+
+#+RESULTS[af3494e9eedc9a5aa93e0bb7d3981d166a9f698f]:
+#+begin_example
+  DISTRICT_ID      int64
+  N_INHAB          int64
+  N_CITIES         int64
+  URBAN_RATIO    float64
+  AVG_SALARY       int64
+  UNEMP_95        object
+  UNEMP_96       float64
+  N_ENTR           int64
+  CRIME_95        object
+  CRIME_96         int64
+  dtype: object
+#+end_example
+
+The column =UNEMP_95= looks like it should be a ~float64~, and =CRIME_95=
+looks like it should be an ~int64~.
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  districts[["CRIME_95", "CRIME_96", "UNEMP_95", "UNEMP_96"]].head()
+#+END_SRC
+
+#+RESULTS[d3e9798ad0ae7cc2fc61357f443c02725c4c5dca]:
+:RESULTS:
+|     | CRIME\_95   | CRIME\_96   | UNEMP\_95   | UNEMP\_96   |
+|-----+-------------+-------------+-------------+-------------|
+| 0   | 85677       | 99107       | 0.29        | 0.43        |
+| 1   | 2159        | 2674        | 1.67        | 1.85        |
+| 2   | 2824        | 2813        | 1.95        | 2.21        |
+| 3   | 5244        | 5892        | 4.64        | 5.05        |
+| 4   | 2616        | 3040        | 3.85        | 4.43        |
+
+
+:END:
+
+As suspected, they are just string versions of the correct data types.
+Now to correct them, I first tried to simply change the data type, but
+there are missing values represented by a =?=, so instead I need to do
+this: 
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  districts.UNEMP_95 = districts.UNEMP_95.map(lambda x: np.nan if x=="?" else np.float64(x))
+  districts.CRIME_95 = districts.CRIME_95.map(lambda x: np.nan if x=="?" else np.int64(x))
+  districts.dtypes
+#+END_SRC
+
+#+RESULTS[bfe128abc845d14e7dcb91573fc483f1d881293c]:
+#+begin_example
+  DISTRICT_ID      int64
+  N_INHAB          int64
+  N_CITIES         int64
+  URBAN_RATIO    float64
+  AVG_SALARY       int64
+  UNEMP_95       float64
+  UNEMP_96       float64
+  N_ENTR           int64
+  CRIME_95       float64
+  CRIME_96         int64
+  dtype: object
+#+end_example
+
+*** Better data formats
+
+When districts have different sizes, raw counts of e.g. crime are not
+very useful; we want the per-capita ratio instead. Also, since the
+=DISTRICT_ID= column is important, we check that all values here are
+unique. 
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  districts["CRIMERATE_95"] = districts["CRIME_95"] / districts["N_INHAB"]
+  districts["CRIMERATE_96"] = districts["CRIME_96"] / districts["N_INHAB"]
+  print(districts.DISTRICT_ID.shape, districts.DISTRICT_ID.unique().shape)
+  districts_clean = districts.drop(["CRIME_95", "CRIME_96"], axis=1)
+  districts_clean.head()
+#+END_SRC
+
+#+RESULTS[57e7e26a98307e799be8d3edf49e0e29b9e15902]:
+:RESULTS:
+: (77,) (77,)
+|     | DISTRICT\_ID   | N\_INHAB   | N\_CITIES   | URBAN\_RATIO   | AVG\_SALARY   | UNEMP\_95   | UNEMP\_96   | N\_ENTR   | CRIMERATE\_95   | CRIMERATE\_96   |
+|-----+----------------+------------+-------------+----------------+---------------+-------------+-------------+-----------+-----------------+-----------------|
+| 0   | 1              | 1204953    | 1           | 100.0          | 12541         | 0.29        | 0.43        | 167       | 0.071104        | 0.082250        |
+| 1   | 2              | 88884      | 5           | 46.7           | 8507          | 1.67        | 1.85        | 132       | 0.024290        | 0.030084        |
+| 2   | 3              | 75232      | 5           | 41.7           | 8980          | 1.95        | 2.21        | 111       | 0.037537        | 0.037391        |
+| 3   | 4              | 149893     | 6           | 67.4           | 9753          | 4.64        | 5.05        | 109       | 0.034985        | 0.039308        |
+| 4   | 5              | 95616      | 6           | 51.4           | 9307          | 3.85        | 4.43        | 118       | 0.027359        | 0.031794        |
+
+
+:END:
+
+All looks good now, the =DISTRICT_ID= column is unique and all data
+types look like they make sense.
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  districts.dtypes
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+  DISTRICT_ID       int64
+  N_INHAB           int64
+  N_CITIES          int64
+  URBAN_RATIO     float64
+  AVG_SALARY        int64
+  UNEMP_95        float64
+  UNEMP_96        float64
+  N_ENTR            int64
+  CRIME_95        float64
+  CRIME_96          int64
+  CRIMERATE_95    float64
+  CRIMERATE_96    float64
+  dtype: object
+#+end_example
+
+*** Correlation plot
+#+BEGIN_SRC jupyter-python :session seb :cache nil :results silent
+  sns.heatmap(districts_clean.corr(), cmap="RdBu", vmin=-1, vmax=1)
+  tight_layout()
+  plt.savefig("./DistCorrplot.png", dpi=200)
+#+END_SRC
+
+:output:
+#+attr_org: :width 500px
+#+attr_html: :width 500px
+[[./DistCorrplot.png]]
+:end:
+
+** Transactions
+*** Missing values
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  print(transacts.shape, transacts.dropna().shape)
+#+END_SRC
+
+#+RESULTS:
+: (1066320, 7) (877295, 7)
+
+There is a large number of transactions with missing data. Now to
+decide whether to discard these or not?
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  null_cols = set(where(transacts.isnull())[1])
+  print([transacts.columns[k] for k in null_cols])
+#+END_SRC
+
+#+RESULTS:
+: ['ACCOUNT_ID', 'OPERATION']
+
+The =OPERATION= column is somewhat redundant with the =TYPE= column, so
+transactions without this value can be kept for now. The =ACCOUNT_ID= is
+on the other hand so important that transactions without it are
+worthless, so we remove those.
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  transacts_nonan = transacts.dropna(subset=["ACCOUNT_ID"])
+  transacts_nonan.shape, transacts.shape
+#+END_SRC
+
+#+RESULTS:
+| 1061320 | 7 |
+| 1066320 | 7 |
+
+*** Check data types
+
+Checking that data types of the different columns look good. Also,
+check that the values of categorical variables make sense.
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  print(transacts_nonan.TYPE.value_counts(), "\n")
+  print(transacts_nonan.OPERATION.value_counts(), "\n")
+  print(transacts_nonan.dtypes)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+  WITHDRAWAL    654334
+  CREDIT        406986
+  Name: TYPE, dtype: int64 
+
+  WITHDRAWAL_IN_CASH            436957
+  REMITTANCE_TO_OTHER_BANK      209291
+  CREDIT_IN_CASH                157493
+  COLLECTION_FROM_OTHER_BANK     65468
+  CC_WITHDRAWAL                   8086
+  Name: OPERATION, dtype: int64 
+
+  TRANS_ID        int64
+  ACCOUNT_ID    float64
+  DATE            int64
+  AMOUNT        float64
+  BALANCE       float64
+  TYPE           object
+  OPERATION      object
+  dtype: object
+#+end_example
+
+=ACCOUNT_ID= should be an integer, but otherwise it looks good.
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  transacts_nonan.ACCOUNT_ID = transacts_nonan.ACCOUNT_ID.astype(np.int64)
+  transacts_clean = transacts_nonan
+  transacts_clean.head()
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: /home/trive/anaconda3/lib/python3.7/site-packages/pandas/core/generic.py:5516: SettingWithCopyWarning: 
+: A value is trying to be set on a copy of a slice from a DataFrame.
+: Try using .loc[row_indexer,col_indexer] = value instead
+: 
+: See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+:   self[name] = value
+|     | TRANS\_ID   | ACCOUNT\_ID   | DATE      | AMOUNT   | BALANCE   | TYPE     | OPERATION          |
+|-----+-------------+---------------+-----------+----------+-----------+----------+--------------------|
+| 0   | 695247      | 2378          | 1011993   | 700.0    | 700.0     | CREDIT   | CREDIT\_IN\_CASH   |
+| 1   | 171812      | 576           | 1011993   | 900.0    | 900.0     | CREDIT   | CREDIT\_IN\_CASH   |
+| 2   | 207264      | 704           | 1011993   | 1000.0   | 1000.0    | CREDIT   | CREDIT\_IN\_CASH   |
+| 3   | 1117247     | 3818          | 1011993   | 600.0    | 600.0     | CREDIT   | CREDIT\_IN\_CASH   |
+| 4   | 579373      | 1972          | 2011993   | 400.0    | 400.0     | CREDIT   | CREDIT\_IN\_CASH   |
+
+
+:END:
+
+*** Correlation plot
+#+BEGIN_SRC jupyter-python :session seb :cache nil :results silent
+  sns.heatmap(transacts_clean.corr(), cmap="RdBu", vmin=-1, vmax=1)
+  tight_layout()
+  plt.savefig("./TranCorrplot.png", dpi=200)
+#+END_SRC
+
+* Data analysis
+** Joined tables
+*** Transactions \cup Customers
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  customers_transacts = customers_clean.set_index(
+      "ACCOUNT_ID").join(transacts.set_index("ACCOUNT_ID")).reset_index()
+  print(customers_transacts.head())
+  print(customers_transacts.shape)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+     ACCOUNT_ID GENDER  BIRTH_DT  LOAN  DISTRICT_ID SET_SPLIT  TRANS_ID  \
+  0           1      F  19701213     0           18     TRAIN         1   
+  1           1      F  19701213     0           18     TRAIN         5   
+  2           1      F  19701213     0           18     TRAIN       199   
+  3           1      F  19701213     0           18     TRAIN   3530438   
+  4           1      F  19701213     0           18     TRAIN         6   
+
+         DATE   AMOUNT  BALANCE    TYPE                   OPERATION  
+  0  24031995   1000.0   1000.0  CREDIT              CREDIT_IN_CASH  
+  1  13041995   3679.0   4679.0  CREDIT  COLLECTION_FROM_OTHER_BANK  
+  2  23041995  12600.0  17279.0  CREDIT              CREDIT_IN_CASH  
+  3  30041995     19.2  17298.2  CREDIT                         NaN  
+  4  13051995   3679.0  20977.2  CREDIT  COLLECTION_FROM_OTHER_BANK  
+  (1036735, 12)
+#+end_example
+
+**** Correlation plot
+A heat map of the correlation matrix is a good way to see if any data
+columns are redundant due to extremely strong correlation.
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil :results silent
+  sns.heatmap(customers_transacts.corr(), cmap="RdBu", vmin=-1, vmax=1)
+  tight_layout()
+  plt.savefig("./CustTransCorrplot.png", dpi=200)
+#+END_SRC
+
+:output:
+#+attr_org: :width 500px
+#+attr_html: :width 600px
+[[./CustTransCorrplot.png]]
+:end:
+
+*** Customers and Districts
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  customers_districts = customers_clean.set_index(
+      "DISTRICT_ID").join(
+          districts_clean.set_index(
+              "DISTRICT_ID"
+          )
+      ).reset_index()
+  customers_districts.columns  # head()
+#+END_SRC
+
+#+RESULTS:
+: Index(['DISTRICT_ID', 'ACCOUNT_ID', 'GENDER', 'BIRTH_DT', 'LOAN', 'SET_SPLIT',
+:        'N_INHAB', 'N_CITIES', 'URBAN_RATIO', 'AVG_SALARY', 'UNEMP_95',
+:        'UNEMP_96', 'N_ENTR', 'CRIMERATE_95', 'CRIMERATE_96'],
+:       dtype='object')
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil :results silent
+  fig, axes = plt.subplots(1, 3, figsize=(9, 3.5))
+  # customers_districts.plot(kind="scatter", x="URBAN_RATIO", y="LOAN", ax=axes[0])
+  # customers_districts.plot(kind="scatter", x="AVG_SALARY", y="LOAN", ax=axes[1])
+  sns.violinplot(data=customers_districts, x="URBAN_RATIO", y="LOAN", ax=axes[0], orient='horizontal')
+  sns.violinplot(data=customers_districts, x="AVG_SALARY", y="LOAN", ax=axes[1], orient='horizontal')
+  sns.violinplot(data=customers_districts, x="BIRTH_DT", y="LOAN", ax=axes[2], orient='horizontal')
+  plt.tight_layout()
+  plt.savefig("./UrbRatioLoan.png", dpi=200)
+#+END_SRC
+
+:output:
+#+attr_org: :width 500px
+#+attr_html: :width 700px
+[[./UrbRatioLoan.png]]
+:end:
+
+**** Correlation plot
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil :results silent
+  sns.heatmap(customers_districts.corr(), cmap="RdBu", vmin=-1, vmax=1)
+  tight_layout()
+  plt.savefig("./CustDistsCorrplot.png", dpi=200)
+#+END_SRC
+
+:output:
+#+attr_org: :width 600px
+#+attr_html: :width 600px
+[[./CustDistsCorrplot.png]]
+:end:
+
+There is room for some cleaning here which I would do with more time.
+
+*** All-in-one
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  BigWun = customers_transacts.set_index("DISTRICT_ID").join(districts_clean.set_index("DISTRICT_ID"))
+  BigWun.drop(["TRANS_ID", "OPERATION", "N_ENTR", "CRIMERATE_95", "UNEMP_95"], inplace=True, axis=1)
+  print(BigWun.shape)
+  print(BigWun.head())
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+  (1036735, 15)
+               ACCOUNT_ID GENDER  BIRTH_DT  LOAN SET_SPLIT      DATE   AMOUNT  \
+  DISTRICT_ID                                                                   
+  1                     2      M  19450204     1     TRAIN  26021993   1100.0   
+  1                     2      M  19450204     1     TRAIN  12031993  20236.0   
+  1                     2      M  19450204     1     TRAIN  28031993   3700.0   
+  1                     2      M  19450204     1     TRAIN  31031993     13.5   
+  1                     2      M  19450204     1     TRAIN  12041993  20236.0   
+
+               BALANCE    TYPE  N_INHAB  N_CITIES  URBAN_RATIO  AVG_SALARY  \
+  DISTRICT_ID                                                                
+  1             1100.0  CREDIT  1204953         1        100.0       12541   
+  1            21336.0  CREDIT  1204953         1        100.0       12541   
+  1            25036.0  CREDIT  1204953         1        100.0       12541   
+  1            25049.5  CREDIT  1204953         1        100.0       12541   
+  1            45285.5  CREDIT  1204953         1        100.0       12541   
+
+               UNEMP_96  CRIMERATE_96  
+  DISTRICT_ID                          
+  1                0.43       0.08225  
+  1                0.43       0.08225  
+  1                0.43       0.08225  
+  1                0.43       0.08225  
+  1                0.43       0.08225  
+#+end_example
+
+Again, I would do more with this if I had more time but there is a lot
+of things that can be tried and tested out and many potential
+problems, so I will not dive into that now.
+
+** Average # of transactions/Customer
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  transacts_per_cust = customers_transacts.groupby(
+      ["ACCOUNT_ID", "DISTRICT_ID", "GENDER"]).count()["AMOUNT"]
+  print(transacts_per_cust)
+  print("Mean # of transactions per customer: ", transacts_per_cust.mean())
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+  ACCOUNT_ID  DISTRICT_ID  GENDER
+  1           18           F         240
+  2           1            M         482
+  3           5            M         117
+  5           15           M          86
+  6           51           F         246
+                                    ... 
+  11333       8            M         368
+  11349       1            F         304
+  11359       61           M         383
+  11362       67           F         348
+  11382       74           F         253
+  Name: AMOUNT, Length: 4400, dtype: int64
+  Mean # of transactions per customer:  235.6215909090909
+#+end_example
+#+BEGIN_SRC jupyter-python :session seb :cache nil :results silent
+  figure(figsize=(7, 4))
+  transact_count = transacts_clean.groupby("ACCOUNT_ID").count()["AMOUNT"]
+  sns.histplot(transact_count, stat="percent")
+  xlabel("# of transactions")
+  tight_layout()
+  savefig("./TransactCount.png", dpi=200)
+#+END_SRC
+
+:output:
+#+attr_org: :width 500px
+#+attr_html: :width 600px
+[[./TransactCount.png]]
+:end:
+
+** Average amout per transaction per customer by gender and geographical region 
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  amount_per_cust = customers_transacts.groupby(
+      ["ACCOUNT_ID", "DISTRICT_ID", "GENDER"]).sum()["AMOUNT"].reset_index()
+  print(amount_per_cust)
+  apc_by_district = amount_per_cust.groupby(["DISTRICT_ID"]).mean()["AMOUNT"]
+  apc_by_gender = amount_per_cust.groupby(["GENDER"]).mean()["AMOUNT"]
+  print(apc_by_district)
+  print(amount_per_cust.ACCOUNT_ID.shape, amount_per_cust.ACCOUNT_ID.unique().shape)
+  # print("Mean amount for each transactions per customer: ", transact_per_cust.mean())
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+        ACCOUNT_ID  DISTRICT_ID GENDER     AMOUNT
+  0              1           18      F   376344.5
+  1              2            1      M  3164645.1
+  2              3            5      M   292451.3
+  3              5           15      M   167006.0
+  4              6           51      F   650592.5
+  ...          ...          ...    ...        ...
+  4395       11333            8      M  3312064.8
+  4396       11349            1      F  3956028.9
+  4397       11359           61      M  2985540.1
+  4398       11362           67      F  1335896.9
+  4399       11382           74      F  2651593.9
+
+  [4400 rows x 4 columns]
+  DISTRICT_ID
+  1     1.425399e+06
+  2     1.423113e+06
+  3     1.381668e+06
+  4     1.502773e+06
+  5     1.529207e+06
+            ...     
+  73    1.331189e+06
+  74    1.649586e+06
+  75    1.312077e+06
+  76    1.258060e+06
+  77    1.549647e+06
+  Name: AMOUNT, Length: 77, dtype: float64
+  (4400,) (4400,)
+#+end_example
+
+*** By district
+#+BEGIN_SRC jupyter-python :session seb :cache nil :results silent
+  fig, ax = subplots(1, 1, figsize=(7, 3.5))
+  # sns.barplot(data=apc_by_district.reset_index().sort_values("AMOUNT"), x="DISTRICT_ID", y="AMOUNT")
+  apc_by_district.reset_index().sort_values("AMOUNT").plot(kind="bar", x="DISTRICT_ID", y="AMOUNT", ax=ax)
+  savefig("./AmountPerCustomerByDistrict.png", dpi=200)
+#+END_SRC
+
+:output:
+#+attr_org: :width 700px
+#+attr_html: :width 700px
+[[./AmountPerCustomerByDistrict.png]]
+:end:
+
+
+*** By gender
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  avg_spend = customers_transacts.groupby(["ACCOUNT_ID", "GENDER"]).mean()["AMOUNT"].reset_index(level=1)
+  # avg_spend
+  figure(figsize=(7, 4))
+  sns.histplot(avg_spend, x="AMOUNT", stat="percent", hue="GENDER", multiple="dodge")
+  axvline(avg_spend.set_index("GENDER").loc["M"].mean().values, ls="--", color="C1")
+  axvline(avg_spend.set_index("GENDER").loc["F"].mean().values, ls=":", color="C0")
+  tight_layout()
+  savefig("./amount_by_gender_hist.png", dpi=200)
+
+  print(f"Avg. spending M: {avg_spend.set_index('GENDER').loc['M'].mean().values[0]:.2f}")
+  print(f"Avg. spending F: {avg_spend.set_index('GENDER').loc['F'].mean().values[0]:.2f}")
+  #axvline(avg_spend.set_index("GENDER").loc["F"].mean(), color="C0")
+#+END_SRC
+
+#+RESULTS:
+: Avg. spending M: 5860.26
+: Avg. spending F: 5622.58
+
+:output:
+#+attr_org: :width 555 px
+[[./amount_by_gender_hist.png]]
+:end:
+
+* Modeling
+We're using ~customers_districts~; with more time, I would also aggreate
+some of the information from the ~transacts~ data set into this but this
+is more like a proof of concept.
+
+#+BEGIN_SRC jupyter-python :session seb :results silent
+  from sklearn import preprocessing
+#+END_SRC
+
+
+** Normalization etc. 
+We drop crimerates and unemployments from one of the years because
+they are redundant because of the extremely strong correlation. I also
+drop ~N_ENTR~ because I am not sure what it means. I probably also could
+drop ~ACCOUNT_ID~, but I want to see what that correlation is about. 
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  model_table = customers_districts.drop(
+      ["CRIMERATE_95", "UNEMP_95", "N_ENTR"],
+      axis=1).set_index("ACCOUNT_ID", drop=False)
+
+  model_table["GENDER"].replace(
+      to_replace=["M", "F"], value=[0,1], inplace=True)
+  
+  print(model_table.head())
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+              DISTRICT_ID  ACCOUNT_ID  GENDER  BIRTH_DT  LOAN SET_SPLIT  \
+  ACCOUNT_ID                                                              
+  2                     1           2       0  19450204     1     TRAIN   
+  17                    1          17       1  19691011     0     TRAIN   
+  22                    1          22       0  19450929     0     TRAIN   
+  49                    1          49       1  19270429     0     TRAIN   
+  50                    1          50       0  19570218     0      TEST   
+
+              N_INHAB  N_CITIES  URBAN_RATIO  AVG_SALARY  UNEMP_96  CRIMERATE_96  
+  ACCOUNT_ID                                                                      
+  2           1204953         1        100.0       12541      0.43       0.08225  
+  17          1204953         1        100.0       12541      0.43       0.08225  
+  22          1204953         1        100.0       12541      0.43       0.08225  
+  49          1204953         1        100.0       12541      0.43       0.08225  
+  50          1204953         1        100.0       12541      0.43       0.08225  
+#+end_example
+
+** X, y
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  X_df = model_table[[
+      "DISTRICT_ID", "ACCOUNT_ID", "GENDER", "BIRTH_DT", 
+      "URBAN_RATIO", "AVG_SALARY", "UNEMP_96", "CRIMERATE_96"]]
+  y = model_table.LOAN.values
+  print(X_df.head())
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+              DISTRICT_ID  ACCOUNT_ID  GENDER  BIRTH_DT  URBAN_RATIO  \
+  ACCOUNT_ID                                                           
+  2                     1           2       0  19450204        100.0   
+  17                    1          17       1  19691011        100.0   
+  22                    1          22       0  19450929        100.0   
+  49                    1          49       1  19270429        100.0   
+  50                    1          50       0  19570218        100.0   
+
+              AVG_SALARY  UNEMP_96  CRIMERATE_96  
+  ACCOUNT_ID                                      
+  2                12541      0.43       0.08225  
+  17               12541      0.43       0.08225  
+  22               12541      0.43       0.08225  
+  49               12541      0.43       0.08225  
+  50               12541      0.43       0.08225  
+#+end_example
+
+** Normalize
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  X = preprocessing.StandardScaler().fit(X_df).transform(X_df)
+  X[0:5]
+#+END_SRC
+
+#+RESULTS:
+: array([[-1.45354344, -1.20407863, -0.98019606, -0.52658011,  1.55546297,
+:          2.30070832, -1.44267323,  2.31592766],
+:        [-1.45354344, -1.19760055,  1.02020406,  0.88370117,  1.55546297,
+:          2.30070832, -1.44267323,  2.31592766],
+:        [-1.45354344, -1.1954412 , -0.98019606, -0.52233416,  1.55546297,
+:          2.30070832, -1.44267323,  2.31592766],
+:        [-1.45354344, -1.18378066,  1.02020406, -1.57942872,  1.55546297,
+:          2.30070832, -1.44267323,  2.31592766],
+:        [-1.45354344, -1.18334879, -0.98019606,  0.17627943,  1.55546297,
+:          2.30070832, -1.44267323,  2.31592766]])
+
+** Split data
+#+BEGIN_SRC jupyter-python :session seb :cache nil :results silent
+  trainidx = where(model_table.SET_SPLIT=="TRAIN")
+  testidx = where(model_table.SET_SPLIT=="TEST")
+
+  X_train, X_test = X[trainidx], X[testidx]
+  y_train, y_test = y[trainidx], y[testidx]
+#+END_SRC
+
+** Learn
+*** Decision Tree
+Here, I build a decision tree, and check if there is any optimum
+maximum-allowed tree depth by a simple cycling
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  from sklearn.tree import DecisionTreeClassifier, plot_tree
+  from sklearn.metrics import jaccard_score
+  for md in range(1, 10):
+      DT_model = DecisionTreeClassifier(criterion="entropy", max_depth=md)
+      DT_model.fit(X_train, y_train)
+      DT_prdct = DT_model.predict(X_test)
+      if md==3:
+          example_tree = DT_model
+      print(jaccard_score(y_test, DT_prdct))
+      print(DT_model.feature_importances_)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+  0.5633802816901409
+  [0. 1. 0. 0. 0. 0. 0. 0.]
+  0.5633802816901409
+  [0.         0.93226216 0.         0.06773784 0.         0.         0.         0.        ]
+  0.5563380281690141
+  [0.         0.91998868 0.         0.08001132 0.         0.         0.         0.        ]
+  0.5241379310344828
+  [0.         0.88895838 0.         0.08813193 0.00979646 0.00827689 0.         0.00483634]
+  0.5208333333333334
+  [0.         0.86526669 0.         0.08453753 0.01986959 0.01862589 0.         0.01170031]
+  0.5314685314685315
+  [0.0027166  0.84627254 0.         0.08612388 0.01915627 0.02125094 0.         0.02447977]
+  0.5314685314685315
+  [0.00240101 0.8210783  0.         0.09372206 0.02310116 0.02998724 0.00241992 0.0272903 ]
+  0.5314685314685315
+  [0.0022897  0.78857813 0.         0.10893001 0.02673605 0.02912418 0.01290169 0.03144024]
+  0.48322147651006714
+  [0.00470355 0.76900285 0.00304165 0.11323565 0.02994146 0.03764244 0.01036288 0.03206952]
+#+end_example
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil :results silent
+  fig, ax = subplots(1, 1, figsize=(8, 5.5))
+  sns.violinplot(data=customers_districts, x="ACCOUNT_ID", y="LOAN", orient="h", size=2)
+  tight_layout()
+  plt.savefig("./SwarmPlotACCID.png", dpi=200)
+#+END_SRC
+
+:output:
+#+attr_org: :width 600px
+#+attr_html: :width 600px
+[[./SwarmPlotACCID.png]]
+:end:
+
+Clearly, there is actually a very strong dependence on =ACCOUT_ID= of
+whether or not people get loans. 
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  # figure(figsize=(5, 4), dpi=200)
+  fig, axes = subplots(1, 2, figsize=(7, 4), dpi=200)
+  plot_tree(example_tree, ax=axes[0])
+  sns.barplot(["DISTRICT_ID", "ACCOUNT_ID", "GENDER", "BIRTH_DT", 
+               "URBAN_RATIO", "AVG_SALARY", "UNEMP_96", "CRIMERATE_96"], example_tree.feature_importances_,ax=axes[1])
+  axes[1].tick_params(rotation=90)
+  axes[0].set_title("Illustration: Decision tree")
+  axes[1].set_title("Importances")
+  tight_layout()
+  savefig("./DTree.png")
+#+END_SRC
+
+#+RESULTS:
+: /home/trive/anaconda3/lib/python3.7/site-packages/seaborn/_decorators.py:43: FutureWarning: Pass the following variables as keyword args: x, y. From version 0.12, the only valid positional argument will be `data`, and passing other arguments without an explicit keyword will result in an error or misinterpretation.
+:   FutureWarning
+
+:output:
+#+attr_org: :width 600px
+[[./DTree.png]]
+:end:
+
+*** Logistic regression
+Here, if I had more time I'd run a hyperparameter optimization thingie.
+
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  from sklearn.linear_model import LogisticRegression
+  LR_model = LogisticRegression(C=0.01).fit(X_train, y_train)
+  LR_prdct = LR_model.predict(X_test)
+  jaccard_score(y_test, LR_prdct)
+  # DT_model.score(dt)
+#+END_SRC
+
+#+RESULTS:
+: 0.3795620437956204
+
+*** SVM
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  from sklearn.svm import SVC
+  SV_model = SVC()
+  SV_model.fit(X_train, y_train)
+  SV_prdct = SV_model.predict(X_test)
+  jaccard_score(y_test, SV_prdct)
+#+END_SRC
+
+#+RESULTS:
+: 0.4420289855072464
+
+*** KNN
+#+BEGIN_SRC jupyter-python :session seb :cache nil
+  from sklearn.neighbors import KNeighborsClassifier
+  for k in range(2, 15):  # "k = 3
+      KN_model = KNeighborsClassifier(n_neighbors=k).fit(X_train, y_train)
+      KN_prdct = KN_model.predict(X_test)
+      print(jaccard_score(y_test, KN_prdct))
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+  0.3402777777777778
+  0.432258064516129
+  0.40875912408759124
+  0.4714285714285714
+  0.4316546762589928
+  0.45714285714285713
+  0.4142857142857143
+  0.44285714285714284
+  0.41007194244604317
+  0.42857142857142855
+  0.4057971014492754
+  0.42028985507246375
+  0.39855072463768115
+#+end_example
+
