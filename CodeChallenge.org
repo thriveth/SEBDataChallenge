@@ -47,13 +47,13 @@ The easy way to check for missing numerical values is to use the
 course be defective values in string columns, we will look at that later.
 
 #+BEGIN_SRC jupyter-python :session seb :cache nil 
-  print(customers.shape)
-  print(customers.dropna().shape)
+  # print(customers.shape)
+  customers.shape, customers.dropna().shape
 #+END_SRC
 
 #+RESULTS:
-: (4450, 8)
-: (4400, 8)
+| 4450 | 8 |
+| 4400 | 8 |
 
 It did change size, so now we need to decide whether to get rid of
 these values or not, or maybe do it later:
@@ -61,11 +61,12 @@ these values or not, or maybe do it later:
 #+BEGIN_SRC jupyter-python :session seb  :cache nil
   # print(where(customers.isnull()))
   nan_cols = set(where(customers.isnull())[1])
-  print([customers.columns[j] for j in nan_cols])
+  [customers.columns[j] for j in nan_cols]
 #+END_SRC
 
-#+RESULTS[4c27c7ec5f8d9de7a02362ae99a9818f31297131]:
-: ['LOAN']
+#+RESULTS:
+| LOAN |
+
 
 All missing values are in the =LOAN= column, which is the target
 variable of this entire dataset. So, I decide to remove all rows with
@@ -76,7 +77,7 @@ missing values in this dataset.
   customers.shape, customers_nonan.shape
 #+END_SRC
 
-#+RESULTS[685bff350c2f75a10ffc8d439f623a42ae691eb0]:
+#+RESULTS:
 | 4450 | 8 |
 | 4400 | 8 |
 
@@ -87,7 +88,7 @@ We want to check whether the data columns have sensible data types.
   customers_nonan.dtypes
 #+END_SRC
 
-#+RESULTS[8c89445579562d9411ec84bcb9ef257e2cab3fae]:
+#+RESULTS:
 : CLIENT_ID        int64
 : ACCOUNT_ID       int64
 : GENDER          object
@@ -97,6 +98,7 @@ We want to check whether the data columns have sensible data types.
 : DISTRICT_ID      int64
 : SET_SPLIT       object
 : dtype: object
+
 
 =LOAN= looks like it should be a categorical value, and thus should be
 an integer. For the sake of later modeling, we may want to convert the
@@ -119,7 +121,7 @@ into a ~DateTime~ object.
   print(customers_nonan.groupby("ACCOUNT_ID").count()["CLIENT_ID"].unique())
 #+END_SRC
 
-#+RESULTS[ac35e4626213e94199fb0d940caa1752b6e2ec6d]:
+#+RESULTS:
 : 0.0    3740
 : 1.0     660
 : Name: LOAN, dtype: int64
@@ -129,6 +131,7 @@ into a ~DateTime~ object.
 : F    2156
 : Name: GENDER, dtype: int64
 : [1]
+
 
 As suspected, =LOAN= is truly categorical and should thus be an integer.
 =ACTIVE= contains only one value and can be dropped. There is one and
@@ -141,7 +144,7 @@ dropped.
   customers_clean.dtypes
 #+END_SRC
 
-#+RESULTS[5ee37448613d26141f9f40dc3e531a3162d1807b]:
+#+RESULTS:
 :RESULTS:
 : /home/trive/anaconda3/lib/python3.7/site-packages/pandas/core/generic.py:5516: SettingWithCopyWarning: 
 : A value is trying to be set on a copy of a slice from a DataFrame.
@@ -157,6 +160,7 @@ dropped.
 : SET_SPLIT      object
 : dtype: object
 :END:
+
 
 *** Correlation plot
 #+BEGIN_SRC jupyter-python :session seb :cache nil :results silent
@@ -178,9 +182,10 @@ dropped.
   print(districts.dropna().shape)
 #+END_SRC
 
-#+RESULTS[4e52e05a2d0ca2ca50586ccf09498f1dfd89a82e]:
-: (77, 10)
-: (77, 10)
+#+RESULTS:
+: (77, 12)
+: (76, 12)
+
 
 This dataset has no missing numerical values.
 
@@ -189,20 +194,23 @@ This dataset has no missing numerical values.
   districts.dtypes
 #+END_SRC
 
-#+RESULTS[af3494e9eedc9a5aa93e0bb7d3981d166a9f698f]:
+#+RESULTS:
 #+begin_example
-  DISTRICT_ID      int64
-  N_INHAB          int64
-  N_CITIES         int64
-  URBAN_RATIO    float64
-  AVG_SALARY       int64
-  UNEMP_95        object
-  UNEMP_96       float64
-  N_ENTR           int64
-  CRIME_95        object
-  CRIME_96         int64
+  DISTRICT_ID       int64
+  N_INHAB           int64
+  N_CITIES          int64
+  URBAN_RATIO     float64
+  AVG_SALARY        int64
+  UNEMP_95        float64
+  UNEMP_96        float64
+  N_ENTR            int64
+  CRIME_95        float64
+  CRIME_96          int64
+  CRIMERATE_95    float64
+  CRIMERATE_96    float64
   dtype: object
 #+end_example
+
 
 The column =UNEMP_95= looks like it should be a ~float64~, and =CRIME_95=
 looks like it should be an ~int64~.
@@ -211,18 +219,19 @@ looks like it should be an ~int64~.
   districts[["CRIME_95", "CRIME_96", "UNEMP_95", "UNEMP_96"]].head()
 #+END_SRC
 
-#+RESULTS[d3e9798ad0ae7cc2fc61357f443c02725c4c5dca]:
+#+RESULTS:
 :RESULTS:
 |     | CRIME\_95   | CRIME\_96   | UNEMP\_95   | UNEMP\_96   |
 |-----+-------------+-------------+-------------+-------------|
-| 0   | 85677       | 99107       | 0.29        | 0.43        |
-| 1   | 2159        | 2674        | 1.67        | 1.85        |
-| 2   | 2824        | 2813        | 1.95        | 2.21        |
-| 3   | 5244        | 5892        | 4.64        | 5.05        |
-| 4   | 2616        | 3040        | 3.85        | 4.43        |
+| 0   | 85677.0     | 99107       | 0.29        | 0.43        |
+| 1   | 2159.0      | 2674        | 1.67        | 1.85        |
+| 2   | 2824.0      | 2813        | 1.95        | 2.21        |
+| 3   | 5244.0      | 5892        | 4.64        | 5.05        |
+| 4   | 2616.0      | 3040        | 3.85        | 4.43        |
 
 
 :END:
+
 
 As suspected, they are just string versions of the correct data types.
 Now to correct them, I first tried to simply change the data type, but
@@ -230,25 +239,28 @@ there are missing values represented by a =?=, so instead I need to do
 this: 
 
 #+BEGIN_SRC jupyter-python :session seb :cache nil
-  districts.UNEMP_95 = districts.UNEMP_95.map(lambda x: np.nan if x=="?" else np.float64(x))
-  districts.CRIME_95 = districts.CRIME_95.map(lambda x: np.nan if x=="?" else np.int64(x))
+  # districts.UNEMP_95 = districts.UNEMP_95.map(lambda x: np.nan if x=="?" else np.float64(x))
+  # districts.CRIME_95 = districts.CRIME_95.map(lambda x: np.nan if x=="?" else np.int64(x))
   districts.dtypes
 #+END_SRC
 
-#+RESULTS[bfe128abc845d14e7dcb91573fc483f1d881293c]:
+#+RESULTS:
 #+begin_example
-  DISTRICT_ID      int64
-  N_INHAB          int64
-  N_CITIES         int64
-  URBAN_RATIO    float64
-  AVG_SALARY       int64
-  UNEMP_95       float64
-  UNEMP_96       float64
-  N_ENTR           int64
-  CRIME_95       float64
-  CRIME_96         int64
+  DISTRICT_ID       int64
+  N_INHAB           int64
+  N_CITIES          int64
+  URBAN_RATIO     float64
+  AVG_SALARY        int64
+  UNEMP_95        float64
+  UNEMP_96        float64
+  N_ENTR            int64
+  CRIME_95        float64
+  CRIME_96          int64
+  CRIMERATE_95    float64
+  CRIMERATE_96    float64
   dtype: object
 #+end_example
+
 
 *** Better data formats
 
@@ -265,7 +277,7 @@ unique.
   districts_clean.head()
 #+END_SRC
 
-#+RESULTS[57e7e26a98307e799be8d3edf49e0e29b9e15902]:
+#+RESULTS:
 :RESULTS:
 : (77,) (77,)
 |     | DISTRICT\_ID   | N\_INHAB   | N\_CITIES   | URBAN\_RATIO   | AVG\_SALARY   | UNEMP\_95   | UNEMP\_96   | N\_ENTR   | CRIMERATE\_95   | CRIMERATE\_96   |
@@ -275,9 +287,8 @@ unique.
 | 2   | 3              | 75232      | 5           | 41.7           | 8980          | 1.95        | 2.21        | 111       | 0.037537        | 0.037391        |
 | 3   | 4              | 149893     | 6           | 67.4           | 9753          | 4.64        | 5.05        | 109       | 0.034985        | 0.039308        |
 | 4   | 5              | 95616      | 6           | 51.4           | 9307          | 3.85        | 4.43        | 118       | 0.027359        | 0.031794        |
-
-
 :END:
+
 
 All looks good now, the =DISTRICT_ID= column is unique and all data
 types look like they make sense.
