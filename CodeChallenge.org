@@ -190,7 +190,7 @@ dropped.
 This dataset has no missing numerical values.
 
 *** Datatype check
-#+BEGIN_SRC jupyter-python :session seb :cache nil
+#+BEGIN_SRC jupyter-python :session seb :cache nil :exports both
   districts.dtypes
 #+END_SRC
 
@@ -215,7 +215,7 @@ This dataset has no missing numerical values.
 The column =UNEMP_95= looks like it should be a ~float64~, and =CRIME_95=
 looks like it should be an ~int64~.
 
-#+BEGIN_SRC jupyter-python :session seb :cache nil
+#+BEGIN_SRC jupyter-python :session seb :cache nil :exports both
   districts[["CRIME_95", "CRIME_96", "UNEMP_95", "UNEMP_96"]].head()
 #+END_SRC
 
@@ -238,7 +238,7 @@ Now to correct them, I first tried to simply change the data type, but
 there are missing values represented by a =?=, so instead I need to do
 this: 
 
-#+BEGIN_SRC jupyter-python :session seb :cache nil
+#+BEGIN_SRC jupyter-python :session seb :cache nil :exports both
   # districts.UNEMP_95 = districts.UNEMP_95.map(lambda x: np.nan if x=="?" else np.float64(x))
   # districts.CRIME_95 = districts.CRIME_95.map(lambda x: np.nan if x=="?" else np.int64(x))
   districts.dtypes
@@ -269,7 +269,7 @@ very useful; we want the per-capita ratio instead. Also, since the
 =DISTRICT_ID= column is important, we check that all values here are
 unique. 
 
-#+BEGIN_SRC jupyter-python :session seb :cache nil
+#+BEGIN_SRC jupyter-python :session seb :cache nil :exports both
   districts["CRIMERATE_95"] = districts["CRIME_95"] / districts["N_INHAB"]
   districts["CRIMERATE_96"] = districts["CRIME_96"] / districts["N_INHAB"]
   print(districts.DISTRICT_ID.shape, districts.DISTRICT_ID.unique().shape)
@@ -287,13 +287,15 @@ unique.
 | 2   | 3              | 75232      | 5           | 41.7           | 8980          | 1.95        | 2.21        | 111       | 0.037537        | 0.037391        |
 | 3   | 4              | 149893     | 6           | 67.4           | 9753          | 4.64        | 5.05        | 109       | 0.034985        | 0.039308        |
 | 4   | 5              | 95616      | 6           | 51.4           | 9307          | 3.85        | 4.43        | 118       | 0.027359        | 0.031794        |
+
+
 :END:
 
 
 All looks good now, the =DISTRICT_ID= column is unique and all data
 types look like they make sense.
 
-#+BEGIN_SRC jupyter-python :session seb :cache nil
+#+BEGIN_SRC jupyter-python :session seb :cache nil :exports both
   districts.dtypes
 #+END_SRC
 
@@ -329,7 +331,7 @@ types look like they make sense.
 
 ** Transactions
 *** Missing values
-#+BEGIN_SRC jupyter-python :session seb :cache nil
+#+BEGIN_SRC jupyter-python :session seb :cache nil :exports both
   print(transacts.shape, transacts.dropna().shape)
 #+END_SRC
 
@@ -339,7 +341,7 @@ types look like they make sense.
 There is a large number of transactions with missing data. Now to
 decide whether to discard these or not?
 
-#+BEGIN_SRC jupyter-python :session seb :cache nil
+#+BEGIN_SRC jupyter-python :session seb :cache nil :exports both
   null_cols = set(where(transacts.isnull())[1])
   print([transacts.columns[k] for k in null_cols])
 #+END_SRC
@@ -352,7 +354,7 @@ transactions without this value can be kept for now. The =ACCOUNT_ID= is
 on the other hand so important that transactions without it are
 worthless, so we remove those.
 
-#+BEGIN_SRC jupyter-python :session seb :cache nil
+#+BEGIN_SRC jupyter-python :session seb :cache nil :exports both
   transacts_nonan = transacts.dropna(subset=["ACCOUNT_ID"])
   transacts_nonan.shape, transacts.shape
 #+END_SRC
